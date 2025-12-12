@@ -22,6 +22,7 @@ interface StoreState {
 
     // Customer Actions
     updateCustomerBalance: (customerId: string, amount: number) => void;
+    updateCustomer: (customerId: string, updates: Partial<Customer>) => void;
 }
 
 export const useStore = create<StoreState>((set) => ({
@@ -95,6 +96,12 @@ export const useStore = create<StoreState>((set) => ({
     updateCustomerBalance: (customerId, amount) => set((state) => ({
         customers: state.customers.map((c) =>
             c.id === customerId ? { ...c, balance: c.balance + amount } : c
+        )
+    })),
+
+    updateCustomer: (customerId, updates) => set((state) => ({
+        customers: state.customers.map((c) =>
+            c.id === customerId ? { ...c, ...updates } : c
         )
     }))
 

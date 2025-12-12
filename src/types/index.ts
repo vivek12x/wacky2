@@ -30,6 +30,8 @@ export interface Customer {
     phone: string;
     balance: number; // Positive means they owe money
     creditScore: number; // 0-100
+    debtStartDate?: string; // ISO Date when the debt turned positive
+    lastPaymentDate?: string; // ISO Date of last payment
     history: Transaction[];
 }
 

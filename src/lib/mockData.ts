@@ -88,6 +88,8 @@ export const initialCustomers: Customer[] = [
         phone: "9876543210",
         balance: 5000,
         creditScore: 45, // Low
+        debtStartDate: "2023-11-01",
+        lastPaymentDate: "2023-10-15",
         history: []
     },
     {
@@ -96,6 +98,8 @@ export const initialCustomers: Customer[] = [
         phone: "9123456780",
         balance: 1200,
         creditScore: 85, // Good
+        debtStartDate: "2023-12-01",
+        lastPaymentDate: "2023-12-10",
         history: []
     },
     {
