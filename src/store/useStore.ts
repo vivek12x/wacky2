@@ -75,14 +75,67 @@ export const useStore = create<StoreState>((set) => ({
 
     clearCart: () => set({ cart: [] }),
 
-    // --- NEW ACTION IMPLEMENTATION ---
-    setCart: (items) => set({
-        cart: items.map((item, index) => ({
-            id: `scanned-${index}-${Date.now()}`, // Generate unique ID for scanned items
-            name: item.name || item.item_name || "Unknown Item", // Handle varied API response keys
-            price: item.price || 0,
-            quantity: item.quantity || item.qty || 1, // Handle varied API response keys
-        }))
+    // --- UPDATED setCart: prepares cart items and updates inventory (auto-restock) ---
+    setCart: (items) => set((state) => {
+        // Generate a timestamp once so IDs created in this call are consistent/unique-ish
+        const timestamp = Date.now();
+
+        // 1. Prepare cart items
+        const newCartItems: CartItem[] = items.map((item: any, index: number) => ({
+            id: `scanned-${index}-${timestamp}`,
+            name: item.name || item.item_name || "Unknown Item",
+            price: item.price ?? 0,
+            quantity: item.quantity ?? item.qty ?? 1,
+        }));
+
+        // 2. Prepare products for inventory (auto-restock)
+        const updatedProducts: Product[] = [...state.products];
+
+        items.forEach((newItem: any) => {
+            const newItemName = (newItem.name || newItem.item_name || "").toString().trim();
+            if (!newItemName) {
+                // Skip nameless items for inventory update
+                return;
+            }
+
+            // Find existing product by name (case-insensitive)
+            const existingIndex = updatedProducts.findIndex(
+                (p) => p.name?.toString().toLowerCase() === newItemName.toLowerCase()
+            );
+
+            const addQty = Number(newItem.quantity ?? newItem.qty ?? 1);
+
+            if (existingIndex >= 0) {
+                // Increase stock quantity
+                const existing = updatedProducts[existingIndex];
+                updatedProducts[existingIndex] = {
+                    ...existing,
+                    quantity: (existing.quantity ?? 0) + addQty
+                };
+            } else {
+                // Insert new product into inventory with sensible defaults
+                const sellingPrice = Number(newItem.price ?? 0);
+                const newProduct: Product = {
+                    id: `inv-${timestamp}-${Math.random().toString(36).slice(2, 9)}`,
+                    name: newItemName || "New Item",
+                    quantity: addQty,
+                    // If your Product type uses different field names, adjust accordingly
+                    costPrice: sellingPrice * 0.8,
+                    sellingPrice: sellingPrice,
+                    category: "New Stock",
+                    // Default expiry: 1 year from now in YYYY-MM-DD
+                    expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+                    // preserve other optional Product fields as undefined or appropriate defaults
+                } as Product;
+
+                updatedProducts.push(newProduct);
+            }
+        });
+
+        return {
+            cart: newCartItems,
+            products: updatedProducts
+        };
     }),
     // ---------------------------------
 
@@ -91,7 +144,7 @@ export const useStore = create<StoreState>((set) => ({
         const newProducts = state.products.map((p) => {
             const cartItem = state.cart.find((c) => c.id === p.id);
             if (cartItem) {
-                return { ...p, quantity: Math.max(0, p.quantity - cartItem.quantity) };
+                return { ...p, quantity: Math.max(0, (p.quantity ?? 0) - cartItem.quantity) };
             }
             return p;
         });
