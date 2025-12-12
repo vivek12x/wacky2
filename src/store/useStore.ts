@@ -18,6 +18,7 @@ interface StoreState {
     removeFromCart: (productId: string) => void;
     updateCartQuantity: (productId: string, quantity: number) => void;
     clearCart: () => void;
+    setCart: (items: any[]) => void; // <--- NEW ACTION ADDED
     checkout: () => void;
 
     // Customer Actions
@@ -73,6 +74,17 @@ export const useStore = create<StoreState>((set) => ({
     }),
 
     clearCart: () => set({ cart: [] }),
+
+    // --- NEW ACTION IMPLEMENTATION ---
+    setCart: (items) => set({
+        cart: items.map((item, index) => ({
+            id: `scanned-${index}-${Date.now()}`, // Generate unique ID for scanned items
+            name: item.name || item.item_name || "Unknown Item", // Handle varied API response keys
+            price: item.price || 0,
+            quantity: item.quantity || item.qty || 1, // Handle varied API response keys
+        }))
+    }),
+    // ---------------------------------
 
     checkout: () => set((state) => {
         // 1. Deduct stock

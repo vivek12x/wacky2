@@ -3,11 +3,10 @@
 import { Customer } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Send, CheckCircle2, Calendar, Clock, PlusCircle, MinusCircle } from "lucide-react";
+import { ArrowLeft, Send, Calendar, Clock, PlusCircle, MinusCircle, Loader2, Sparkles } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { useState } from "react";
 import { useStore } from "@/store/useStore";
-import { Loader2, Sparkles } from "lucide-react";
 
 interface CustomerDetailProps {
     customer: Customer;
@@ -37,18 +36,29 @@ export function CustomerDetail({ customer, onBack, onPayment }: CustomerDetailPr
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    history: customer.history,
-                    balance: customer.balance
+                    // Sending complete data for accurate AI analysis
+                    history: customer.history || [],
+                    balance: customer.balance,
+                    lastPaymentDate: customer.lastPaymentDate,
+                    debtStartDate: customer.debtStartDate
                 })
             });
+
             const data = await res.json();
-            if (data.creditScore) {
+
+            if (res.ok && data.creditScore !== undefined) {
+                // Update the store
                 updateCustomer(customer.id, { creditScore: data.creditScore });
+
+                // Optional: Show the reason if the backend sent one
+                if (data.reason) {
+                    alert(`Score Updated: ${data.creditScore}\nReason: ${data.reason}`);
+                }
             } else {
                 alert("Failed to calculate score: " + (data.error || "Unknown error"));
             }
         } catch (error) {
-            alert("Error calculating score");
+            alert("Error connecting to server");
             console.error(error);
         } finally {
             setIsCalculating(false);
@@ -56,7 +66,7 @@ export function CustomerDetail({ customer, onBack, onPayment }: CustomerDetailPr
     };
 
     // Gauge Data
-    const score = customer.creditScore;
+    const score = customer.creditScore || 0; // Default to 0 if undefined
     const data = [
         { name: "Score", value: score },
         { name: "Remaining", value: 100 - score },
@@ -74,12 +84,15 @@ export function CustomerDetail({ customer, onBack, onPayment }: CustomerDetailPr
             </Button>
 
             <div className="grid gap-6 md:grid-cols-2">
+                {/* Left Card: Financial Details */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-2xl">{customer.name}</CardTitle>
                         <CardDescription className="flex items-center justify-between">
                             <span>Phone: {customer.phone}</span>
-                            <span className="text-xs text-muted-foreground"> Last Paid: {customer.lastPaymentDate || "Never"}</span>
+                            <span className="text-xs text-muted-foreground">
+                                Last Paid: {customer.lastPaymentDate || "Never"}
+                            </span>
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -99,7 +112,7 @@ export function CustomerDetail({ customer, onBack, onPayment }: CustomerDetailPr
                             <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-blue-500" />
                                 <div>
-                                    <p className="text-muted-foreground">Registered</p>
+                                    <p className="text-muted-foreground">Debt Started</p>
                                     <div className="flex items-center gap-1">
                                         <p className="font-semibold">{customer.debtStartDate || "N/A"}</p>
                                     </div>
@@ -116,7 +129,7 @@ export function CustomerDetail({ customer, onBack, onPayment }: CustomerDetailPr
                                         const val = parseFloat(amount);
                                         if (!isNaN(val)) {
                                             updateCustomerBalance(customer.id, val);
-                                            // Initialize start date if starting from 0
+                                            // Initialize start date if starting from 0 balance
                                             if (customer.balance === 0) {
                                                 updateCustomer(customer.id, { debtStartDate: new Date().toISOString().split('T')[0] });
                                             }
@@ -148,6 +161,7 @@ export function CustomerDetail({ customer, onBack, onPayment }: CustomerDetailPr
                     </CardContent>
                 </Card>
 
+                {/* Right Card: Credit Score Visualization */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
